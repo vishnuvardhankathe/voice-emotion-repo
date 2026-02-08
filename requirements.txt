@@ -1,8 +1,6 @@
 streamlit
-openai-whisper
-torch
+speechrecognition
 transformers
+torch
 plotly
 pandas
-ffmpeg-python
-
