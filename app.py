@@ -6,10 +6,13 @@ import plotly.express as px
 import tempfile
 import os
 
-st.set_page_config(page_title="Voice Emotion Analyzer", layout="wide")
+st.set_page_config(
+    page_title="Voice Emotion Analyzer",
+    layout="wide"
+)
+
 st.title("🎤 Voice Emotion Analysis Dashboard")
 
-# Load emotion model
 @st.cache_resource
 def load_emotion_model():
     return pipeline(
@@ -20,7 +23,10 @@ def load_emotion_model():
 emotion_model = load_emotion_model()
 recognizer = sr.Recognizer()
 
-uploaded_file = st.file_uploader("Upload Audio File (.wav only)", type=["wav"])
+uploaded_file = st.file_uploader(
+    "Upload Audio File (.wav only)",
+    type=["wav"]
+)
 
 if uploaded_file:
 
@@ -29,14 +35,15 @@ if uploaded_file:
         audio_path = tmp.name
 
     try:
-        with sr.AudioFile(audio_path) as source:
-            audio_data = recognizer.record(source)
-            text = recognizer.recognize_google(audio_data)
+        with st.spinner("Transcribing audio..."):
+            with sr.AudioFile(audio_path) as source:
+                audio_data = recognizer.record(source)
+                text = recognizer.recognize_google(audio_data)
 
         sentences = text.split(".")
         rows = []
-
         time = 0
+
         for sentence in sentences:
             if sentence.strip():
                 emotion = emotion_model(sentence)[0]["label"]
@@ -45,7 +52,7 @@ if uploaded_file:
                     "Text": sentence.strip(),
                     "Emotion": emotion
                 })
-                time += 5   # approximate interval
+                time += 5
 
         df = pd.DataFrame(rows)
 
@@ -54,19 +61,37 @@ if uploaded_file:
         st.subheader("Emotion Timeline")
         st.dataframe(df)
 
-        fig1 = px.line(df, x="Start Time (sec)", y="Emotion", markers=True)
-        st.plotly_chart(fig1)
+        st.subheader("Emotion Changes Over Time")
+        fig1 = px.line(
+            df,
+            x="Start Time (sec)",
+            y="Emotion",
+            markers=True
+        )
+        st.plotly_chart(fig1, use_container_width=True)
 
-        fig2 = px.bar(df["Emotion"].value_counts().reset_index(),
-                      x="index", y="Emotion")
-        st.plotly_chart(fig2)
+        emotion_counts = df["Emotion"].value_counts().reset_index()
+        emotion_counts.columns = ["Emotion", "Count"]
+
+        st.subheader("Emotion Distribution")
+        fig2 = px.bar(
+            emotion_counts,
+            x="Emotion",
+            y="Count"
+        )
+        st.plotly_chart(fig2, use_container_width=True)
 
         csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, "emotion_report.csv")
+        st.download_button(
+            "Download CSV Report",
+            csv,
+            "emotion_report.csv"
+        )
 
     except Exception as e:
         st.error("Please upload a valid WAV audio file.")
         st.write(e)
 
     finally:
-        os.remove(audio_path)
+        if os.path.exists(audio_path):
+            os.remove(audio_path)
